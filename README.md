@@ -3,6 +3,8 @@
 Personal notes and experiments for learning [Podman](https://podman.io/) and containers, plus
 some PowerShell helper functions for everyday Podman use on Windows.
 
+[`PLAN.md`](PLAN.md) is the step-by-step plan for learning Podman, with labs and a progress tracker.
+
 ## Requirements
 
 - [Podman](https://podman.io/docs/installation) with a Podman machine (`podman machine init`)
