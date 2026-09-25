@@ -13,16 +13,52 @@ It was prepared with AI; see [How AI is used in this project](#how-ai-is-used-in
 
 ## PowerShell helpers
 
-[`PodmanHelpers.ps1`](PodmanHelpers.ps1) defines these functions:
+[`PodmanHelpers.ps1`](PodmanHelpers.ps1) defines these functions, which can also be seen by running `pod-help` on the command line.
+
+**--- MACHINE ---**
 
 | Function | What it does |
 |---|---|
-| `pod-start` | Start the Podman machine |
-| `pod-end` | Stop the Podman machine |
+| `pod-sys-start` | Start the Podman machine |
+| `pod-sys-stop` | Stop the Podman machine |
+
+**--- RUN ---**
+
+| Function | What it does |
+|---|---|
 | `pod-run <image> [command...]` | Run an image once, optionally with a command, and remove the container afterwards (`podman run --rm`) |
+| `pod-start <name> [image]` | Start a container named `<name>` in the background, detached, then list containers (`podman run -d`, `podman ps -a`). Without an image, start the existing container named `<name>` (`podman start`) |
+| `pod-start-nginx <name>` | Start an nginx Alpine container named `<name>` in the background (`pod-start <name> docker.io/library/nginx:alpine`) |
+| `pod-start-alp <name>` | Start an Alpine container named `<name>` in the background, kept running with `sleep infinity`, then list containers (`podman run -d ... docker.io/library/alpine sleep infinity`, `podman ps -a`) |
+| `pod-stop <name>` | Stop a named container without removing it, then list containers (`podman stop`, `podman ps -a`) |
+| `pod-rm-con <name>` | Remove a named container, but not if running, then list containers (`podman rm`, `podman ps -a`) |
+| `pod-rm-img <name>` | Remove a named image, but not if in use, then list images (`podman rmi`, `podman images`) |
+| `pod-proc <name>` | Show a named container's running processes (`podman top`) |
+| `pod-show <name>` | Show a named container's full details (`podman inspect`) |
+| `pod-log <name>` | Follow a named container's logs (`podman logs -f`) |
+| `pod-open <image> [shell]` | Run an image interactively with a shell, defaulting to `sh`, and remove the container afterwards (`podman run -it --rm`) |
+| `pod-exec <name> <command> [args...]` | Run a command in a running container's terminal (`podman exec -it`) |
+| `pod-edit <name>` | Open a `sh` shell in a running container (`pod-exec <name> sh`) |
+| `pod-alp` | Open the Alpine image's `sh` shell (`pod-open docker.io/library/alpine sh`) |
+| `pod-nginx` | Open the nginx Alpine image's `sh` shell (`pod-open docker.io/library/nginx:alpine sh`) |
 | `pod-test` | Check Podman works by running `quay.io/podman/hello` |
-| `pod-test-2` | Show the Alpine image's release with `cat /etc/os-release` |
-| `pod-ls` | Show the Podman client/server versions, the machine's kernel and OCI runtime, and connections (rootless or rootful, and which is the default), and list Podman machines, all containers (running and stopped), images and volumes in a box |
+| `pod-test-alp` | Show the Alpine image's release with `cat /etc/os-release` |
+| `pod-test-nginx` | Show the nginx Alpine image's release with `cat /etc/os-release` |
+
+**--- IMAGES ---**
+
+| Function | What it does |
+|---|---|
+| `pod-digest` | List images with their repository tags and digests (`podman images --digests`) |
+| `pod-hist <image>` | Show an image's layer history (`podman history <image>`) |
+
+**--- INFO ---**
+
+| Function | What it does |
+|---|---|
+| `pod-ls` | Podman dashboard: client/server versions, connections, machines, containers, container stats, images, volumes and disk usage, in a box |
+| `pod-alias [filter]` | List podman's registered short-name aliases (from `registries.conf` and its drop-ins, plus `short-name-aliases.conf`), optionally only those whose name contains the filter |
+| `pod-help` | List every pod-* helper with a one-line description, grouped by what it does |
 
 ### Setup
 
@@ -42,10 +78,10 @@ if ([Console]::InputEncoding.GetPreamble().Length) { [Console]::InputEncoding = 
 Open a new PowerShell window, then try it:
 
 ```powershell
-pod-start
+pod-sys-start
 pod-test
 pod-ls
-pod-end
+pod-sys-stop
 ```
 
 ### Example output
@@ -56,7 +92,7 @@ pod-end
 
 `pod-ls`:
 
-![pod-ls output: client, server, kernel and runtime versions, then connections, machines, containers, images and volumes, in a rainbow box](pod-ls.png)
+![pod-ls output: client, server, kernel and runtime versions, then connections, machines, containers, stats, images, volumes and disk usage, in a rainbow box](pod-ls.png)
 
 ## How AI is used in this project
 

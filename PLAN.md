@@ -6,7 +6,7 @@
 | **Environment** | Windows 11, Podman with a WSL2-backed Podman machine, PowerShell, the helpers in [`PodmanHelpers.ps1`](PodmanHelpers.ps1) |
 | **Format** | 10 phases of short lessons. Each lesson teaches one concept in a sentence or two, with something to try. |
 | **Suggested pace** | 1–2 phases a week. Each lesson takes 5–15 minutes. Roughly 6–8 weeks in total. |
-| **Status** | In progress: Phase 0 done |
+| **Status** | In progress: Phases 0–1 done |
 
 ## How to use this plan
 
@@ -50,7 +50,7 @@ When you finish, you should be able to:
 Containers need a Linux kernel, so on Windows Podman runs them in a small Linux VM called the
 Podman machine. You create it once and then start and stop it.
 
-**Try:** `podman machine init`, then `pod-start` and `podman machine list`.
+**Try:** `podman machine init`, then `pod-sys-start` and `podman machine list`.
 
 #### 0.2 Client and server
 The `podman` command on Windows is only a client; it sends each command to Podman inside the
@@ -135,17 +135,23 @@ Fully qualified names avoid pulling a lookalike from the wrong registry.
 
 **Try:** `podman machine ssh cat /etc/containers/registries.conf.d/000-shortnames.conf | Select-Object -First 20`
 
+`pod-alias` lists these without the SSH noise.
+
 #### 1.3 Tags and digests
 A tag like `alpine` can be moved to a new image at any time; a digest (`sha256:…`) always means
 exactly the same image.
 
 **Try:** `podman images --digests`
 
+`pod-digest` wraps this.
+
 #### 1.4 Layers
 An image is a stack of read-only layers, one for each build step, shared between images that
 use the same base.
 
 **Try:** `podman history docker.io/library/nginx:alpine`
+
+`pod-hist` wraps this.
 
 #### 1.5 One-off containers
 `--rm` removes the container as soon as it exits. `pod-run` uses it.
@@ -157,20 +163,28 @@ use the same base.
 
 **Try:** `podman run -it --rm docker.io/library/alpine sh`, then `exit`.
 
+`pod-open` wraps this.
+
 #### 1.7 Detached, named containers
 `-d` runs a container in the background, and `--name` gives it a name to use in later commands.
 
 **Try:** `podman run -d --name web docker.io/library/nginx:alpine`, then `podman ps`.
+
+`pod-start` wraps this.
 
 #### 1.8 Logs
 A container's output goes to its log.
 
 **Try:** `podman logs -f web` (Ctrl+C to stop following).
 
+`pod-log` wraps this.
+
 #### 1.9 Exec
 `exec` runs an extra command inside a running container.
 
 **Try:** `podman exec -it web sh`, then `wget -qO- localhost` inside it.
+
+`pod-exec` and `pod-edit` wrap this.
 
 #### 1.10 Container states
 Containers move between created, running and exited; stopping one keeps it, removing it
@@ -178,20 +192,29 @@ deletes it.
 
 **Try:** `podman stop web`, `podman ps -a`, `podman start web`, `podman ps`.
 
+`pod-stop` and `pod-start <name>` wrap this.
+
 #### 1.11 Inspect
 `inspect` shows everything Podman knows about a container or image, as JSON.
 
 **Try:** `podman inspect web`, then pick one field: `podman inspect web --format '{{.State.Status}}'`
+
+`pod-show` wraps this.
 
 #### 1.12 Resource use
 `top` shows a container's processes and `stats` its CPU and memory.
 
 **Try:** `podman top web` and `podman stats --no-stream`
 
+`pod-proc` wraps the `top`; the STATS section of `pod-ls` shows `podman stats --no-stream`.
+
 #### 1.13 Cleaning up
 Stopped containers, unused images and volumes take up disk until you remove them.
 
 **Try:** `podman rm -f web`, then `pod-ls`, `podman system df`, `podman system prune`, `pod-ls`.
+
+`pod-rm-con` wraps the removal, and the DISK USAGE section of `pod-ls` shows
+`podman system df`.
 
 ---
 
@@ -640,7 +663,7 @@ and database) that:
 | Phase | Topic | Lessons | Status | Started | Finished | Notes |
 |---|---|---|---|---|---|---|
 | 0 | Orientation and setup | 7 | Done | 2026-09-24 | 2026-09-24 | 0.2, 0.3, 0.6 and 0.7 built into `pod-ls` (versions, kernel, connections, runtime) |
-| 1 | Images and containers | 13 | Not started | | | |
+| 1 | Images and containers | 13 | Done | 2026-09-24 | 2026-09-25 | Helpers added for 1.2–1.4, 1.6–1.13 (`pod-alias`, `pod-digest`, `pod-hist`, `pod-open`, `pod-start`, `pod-log`, `pod-exec`/`pod-edit`, `pod-stop`, `pod-show`, `pod-proc`, `pod-rm-con`; `pod-ls` gained STATS and DISK USAGE sections) |
 | 2 | Building images | 11 | Not started | | | |
 | 3 | Storage, configuration and secrets | 7 | Not started | | | |
 | 4 | Networking | 8 | Not started | | | |

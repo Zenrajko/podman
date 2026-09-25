@@ -6,8 +6,9 @@ with code in this repository.
 ## What this is
 
 A personal repo for learning Podman on Windows: notes and experiments, plus `PodmanHelpers.ps1`,
-a set of PowerShell functions (`pod-start`, `pod-end`, `pod-run`, `pod-test`, `pod-test-2`,
-`pod-ls`) that users dot-source from their `$PROFILE`. There is no build, test suite or linter.
+a set of PowerShell functions (`pod-sys-start`, `pod-sys-stop`, `pod-run`, `pod-start`,
+`pod-open`, `pod-test`, `pod-test-alp`, `pod-ls`) that users dot-source from their `$PROFILE`.
+There is no build, test suite or linter.
 It may be published, so keep it free of employer names, customer data and PII.
 
 `PLAN.md` is the learning plan: phases of short lessons, each with a **Try** command, and a
@@ -38,10 +39,10 @@ it first:
 
 ```powershell
 . .\PodmanHelpers.ps1
-pod-start
+pod-sys-start
 pod-test      # runs quay.io/podman/hello
 pod-ls
-pod-end
+pod-sys-stop
 ```
 
 `pod-ls` also works with the machine stopped (it shows only what Windows knows), so test both
@@ -59,7 +60,8 @@ Podman installs to `C:\Program Files\RedHat\Podman\` and is on the machine PATH.
   each line is turned into a string with `ForEach-Object { "$_" }`, and the lines are joined with
   `` "`n" `` (LF only) before being piped to `lolcatjs`. CRs make lolcatjs add a blank line after
   every line. New functions that print podman output should follow this pattern. Inside `pod-ls`
-  the nested `podlines` helper does the first two steps.
+  the nested `podlines` helper does the first two steps. Rainbow output is the norm for `pod-*`
+  helpers, so requests rarely need to spell it out.
 - `pod-run` reads `$args` rather than a `param()` block on purpose, so options meant for the
   container (`-la`, `-i`, `-o`) aren't bound by PowerShell as parameters of `pod-run`. Wrap it
   (like `pod-test`) rather than duplicating `podman run --rm` logic.

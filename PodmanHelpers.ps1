@@ -13,8 +13,8 @@
 
 # Start/stop the Podman machine, in rainbow. 2>&1 includes podman's warnings, and
 # lines are joined with LF only, as CRs make lolcatjs add a blank line after each line
-function pod-start { (podman machine start 2>&1 | ForEach-Object { "$_" }) -join "`n" | lolcatjs }
-function pod-end   { (podman machine stop 2>&1 | ForEach-Object { "$_" }) -join "`n" | lolcatjs }
+function pod-sys-start { (podman machine start 2>&1 | ForEach-Object { "$_" }) -join "`n" | lolcatjs }
+function pod-sys-stop  { (podman machine stop 2>&1 | ForEach-Object { "$_" }) -join "`n" | lolcatjs }
 
 # Run an image once and remove its container afterwards, in rainbow. Anything after the
 # image is passed to the container as its command, e.g.
@@ -29,11 +29,122 @@ function pod-run {
     (podman run --rm $image @command 2>&1 | ForEach-Object { "$_" }) -join "`n" | lolcatjs
 }
 
+# Start a container in the background, then show the container list so the user sees
+# it start, in rainbow. With no image, the name is an existing (stopped) container to start
+function pod-start {
+    param ([Parameter(Mandatory)][string]$Name, [string]$Image)
+
+    if ($Image) {
+        (podman run -d --name $Name $Image 2>&1 | ForEach-Object { "$_" }) -join "`n" | lolcatjs
+    } else {
+        # podman container exists prints nothing, so test its exit code rather than output
+        podman container exists $Name 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            (podman start $Name 2>&1 | ForEach-Object { "$_" }) -join "`n" | lolcatjs
+        } else {
+            Write-Error "No container named '$Name' and no image given. Usage: pod-start <name> <image>, or pod-start <name> to start an existing container"
+        }
+    }
+    (podman ps -a 2>&1 | ForEach-Object { "$_" }) -join "`n" | lolcatjs
+}
+
+# Stop a container, then list containers, so the user sees it stopped
+function pod-stop {
+    param ([Parameter(Mandatory)][string]$Name)
+    (podman stop $Name 2>&1 | ForEach-Object { "$_" }) -join "`n" | lolcatjs
+    (podman ps -a 2>&1 | ForEach-Object { "$_" }) -join "`n" | lolcatjs
+}
+
+# Remove a container, but not if it's running, then show the container list so the user
+# sees it removed
+function pod-rm-con {
+    param ([Parameter(Mandatory)][string]$Name)
+    (podman rm $Name 2>&1 | ForEach-Object { "$_" }) -join "`n" | lolcatjs
+    (podman ps -a 2>&1 | ForEach-Object { "$_" }) -join "`n" | lolcatjs
+}
+
+# Remove an image, but not if it's being used, then show the image list so the user sees
+# it removed
+function pod-rm-img {
+    param ([Parameter(Mandatory)][string]$Name)
+    (podman rmi $Name 2>&1 | ForEach-Object { "$_" }) -join "`n" | lolcatjs
+    (podman images 2>&1 | ForEach-Object { "$_" }) -join "`n" | lolcatjs
+}
+
+# Show a container's processes (top output)
+function pod-proc {
+    param ([Parameter(Mandatory)][string]$Name)
+    (podman top $Name 2>&1 | ForEach-Object { "$_" }) -join "`n" | lolcatjs
+}
+
+# Show a container's full details
+function pod-show {
+    param ([Parameter(Mandatory)][string]$Name)
+    (podman inspect $Name 2>&1 | ForEach-Object { "$_" }) -join "`n" | lolcatjs
+}
+
+# Follow a container's logs
+function pod-log {
+    param ([Parameter(Mandatory)][string]$Name)
+    (podman logs -f $Name 2>&1 | ForEach-Object { "$_" }) -join "`n" | lolcatjs
+}
+
+# List images with their digests, in rainbow
+function pod-digest { (podman images --digests 2>&1 | ForEach-Object { "$_" }) -join "`n" | lolcatjs }
+
+# Show an image's history of layers, in rainbow
+function pod-hist { (podman history $args 2>&1 | ForEach-Object { "$_" }) -join "`n" | lolcatjs }
+
+# Open an interactive shell in a container, running and removing it afterwards. Runs unbuffered
+# (not via lolcatjs), as piping an interactive session through the rainbow would break it
+function pod-open {
+    param ([Parameter(Mandatory)][string]$Image, [string]$Shell = "sh")
+    "Running image '$Image' with shell '$Shell'. Type 'exit' to quit." | lolcatjs
+    podman run -it --rm "$Image" "$Shell"
+}
+
+# Run a command in a running container's terminal. Interactive, so unbuffered like pod-open
+function pod-exec {
+    if ($args.Count -lt 2) { Write-Error "Usage: pod-exec <name> <command> [args...]"; return }
+    $name = $args[0]
+    $command = @($args | Select-Object -Skip 1)
+    podman exec -it $name @command
+}
+
+# Open a shell in a running container
+function pod-edit {
+    param ([Parameter(Mandatory)][string]$Name)
+    pod-exec $Name sh
+}
+
+# Open the Alpine image's sh shell
+function pod-alp { pod-open docker.io/library/alpine sh }
+
+# Start an nginx Alpine container in the background
+function pod-start-nginx {
+    param ([Parameter(Mandatory)][string]$Name)
+    pod-start $Name docker.io/library/nginx:alpine
+}
+
+# Start an Alpine container in the background, kept alive with sleep infinity, then show
+# the container list. Plain alpine has no process to run, so it would exit immediately otherwise
+function pod-start-alp {
+    param ([Parameter(Mandatory)][string]$Name)
+    (podman run -d --name $Name docker.io/library/alpine sleep infinity 2>&1 | ForEach-Object { "$_" }) -join "`n" | lolcatjs
+    (podman ps -a 2>&1 | ForEach-Object { "$_" }) -join "`n" | lolcatjs
+}
+
+# Open the nginx Alpine image's sh shell
+function pod-nginx { pod-open docker.io/library/nginx:alpine sh }
+
 # Quick check that Podman works
 function pod-test { pod-run quay.io/podman/hello }
 
 # Show which Linux release the Alpine image is
-function pod-test-2 { pod-run docker.io/library/alpine cat /etc/os-release }
+function pod-test-alp { pod-run docker.io/library/alpine cat /etc/os-release }
+
+# Show which Linux release the nginx Alpine image is
+function pod-test-nginx { pod-run docker.io/library/nginx:alpine cat /etc/os-release }
 
 # List the Podman client/server versions, the machine's kernel and OCI runtime, connections,
 # machines, all containers (running and stopped), images and volumes, in rainbow. The client
@@ -80,13 +191,19 @@ function pod-ls {
             "--- CONTAINERS ---"
             podlines ps -a
             ""
+            "--- STATS ---"
+            podlines stats --no-stream
+            ""
             "--- IMAGES ---"
             podlines images
             ""
             "--- VOLUMES ---"
             podlines volume ls
+            ""
+            "--- DISK USAGE ---"
+            podlines system df
         } else {
-            "Machine not running - run pod-start to see containers, images and volumes"
+            "Machine not running - run pod-sys-start to see containers, images and volumes"
         }
     } | Out-String
     # Draw a +---+ border around the output
@@ -95,6 +212,80 @@ function pod-ls {
     $edge  = "+" + ("-" * ($width + 2)) + "+"
     $boxed = @($edge) + ($lines | ForEach-Object { "| " + $_.PadRight($width) + " |" }) + @($edge)
     ""
+    # Join with LF only, as CRs make lolcatjs add a blank line after each line
+    $boxed -join "`n" | lolcatjs
+}
+
+# Return list of podman aliases, optionally filtered
+function pod-alias {
+    param ([string]$Filter)
+
+    $list = podman machine ssh cat /etc/containers/registries.conf.d/000-shortnames.conf
+
+    if ($null -eq $Filter) {
+        return $list
+    } else {
+        return $list.Where({ $_ -like "*$Filter*" })
+    }
+}
+
+# List every pod-* helper with a one-line description, grouped by what it does, in a rainbow
+# box. Written out rather than gathered from Get-Command, so it shows exactly what the file
+# defines. The descriptions are what this file does, so it stays in sync with the README table
+function pod-help {
+    $help = [ordered]@{
+        "MACHINE" = [ordered]@{
+            "pod-sys-start" = "Start the Podman machine"
+            "pod-sys-stop"  = "Stop the Podman machine"
+        }
+        "RUN" = [ordered]@{
+            "pod-run <image> [cmd...]"  = "Run an image once, then remove the container"
+            "pod-start <name> [image]" = "Start a container, or an existing one by name only"
+            "pod-start-nginx <name>" = "Start an nginx Alpine container in the background"
+            "pod-start-alp <name>"  = "Start an Alpine container, kept running with sleep infinity"
+            "pod-stop <name>"       = "Stop a container keeping it, then list containers"
+            "pod-rm-con <name>"     = "Remove a container, then list containers"
+            "pod-rm-img <name>"     = "Remove an image, then list images"
+            "pod-proc <name>"       = "Show a container's processes"
+            "pod-show <name>"       = "Inspect a container's full details"
+            "pod-log <name>"        = "Follow a container's logs"
+            "pod-open <image> [shell]" = "Open an interactive shell, default 'sh'"
+            "pod-exec <name> <cmd>"   = "Run a command in a running container"
+            "pod-edit <name>"       = "Open a shell in a running container"
+            "pod-alp"                  = "Open the Alpine image's sh shell"
+            "pod-nginx"                = "Open the nginx Alpine image's sh shell"
+            "pod-test"                 = "Check Podman works (quay.io/podman/hello)"
+            "pod-test-alp"             = "Show the Alpine image's release"
+            "pod-test-nginx"           = "Show the nginx Alpine image's release"
+        }
+        "IMAGES" = [ordered]@{
+            "pod-digest"      = "List images with their digests"
+            "pod-hist <image>" = "Show an image's layer history"
+        }
+        "INFO" = [ordered]@{
+            "pod-ls"             = "Dashboard: versions, connections, machines, containers, images and volumes"
+            "pod-alias [filter]" = "List short-name aliases, optionally filtered"
+            "pod-help"           = "Show this list of helpers"
+        }
+    }
+
+    # Align names across all sections into one column, then draw a +---+ border around the list
+    $nameWidth = 0
+    foreach ($names in $help.Values) {
+        $nameWidth = [Math]::Max($nameWidth, ($names.Keys | Measure-Object -Property Length -Maximum).Maximum)
+    }
+    $lines = & {
+        foreach ($section in $help.Keys) {
+            "--- $section ---"
+            foreach ($name in $help[$section].Keys) {
+                "{0}  {1}" -f $name.PadRight($nameWidth), $help[$section][$name]
+            }
+            ""
+        }
+    }
+    $width = ($lines | Measure-Object -Property Length -Maximum).Maximum
+    $edge  = "+" + ("-" * ($width + 2)) + "+"
+    $boxed = @($edge) + ($lines | ForEach-Object { "| " + $_.PadRight($width) + " |" }) + @($edge)
     # Join with LF only, as CRs make lolcatjs add a blank line after each line
     $boxed -join "`n" | lolcatjs
 }
