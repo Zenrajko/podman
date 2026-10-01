@@ -64,7 +64,7 @@ under CONNECTIONS.
 #### 0.3 Containers vs virtual machines
 A container is an isolated process that shares the host's kernel; a VM boots its own kernel.
 
-**Try:** `pod-run docker.io/library/alpine uname -r` and `podman machine ssh uname -r`. The
+**Try:** `pod-run docker.io/library/alpine:latest uname -r` and `podman machine ssh uname -r`. The
 kernel version is the same.
 
 `pod-ls` shows the machine's kernel (from `podman info`) on its first line.
@@ -72,7 +72,7 @@ kernel version is the same.
 #### 0.4 Images vs containers
 An image is a read-only template; a container is one instance of it, running or stopped.
 
-**Try:** run `podman run quay.io/podman/hello` twice, then compare `podman ps -a` (two
+**Try:** run `podman run quay.io/podman/hello:latest` twice, then compare `podman ps -a` (two
 containers) with `podman images` (one image).
 
 #### 0.5 Daemonless
@@ -86,7 +86,7 @@ On Windows there *is* a `podman system service` in the machine, because the Wind
 needs an API to talk to (see 0.2). It's started on demand when a command arrives, and the
 containers don't depend on it.
 
-**Try:** `podman run -d --name sleeper docker.io/library/alpine sleep 600`, then
+**Try:** `podman run -d --name sleeper docker.io/library/alpine:latest sleep 600`, then
 `podman machine ssh "ps -eo pid,ppid,args --forest | grep -E 'podman|conmon|sleep 600' | cut -c1-80"`.
 The `sleep` process's parent (PPID) is `conmon`, and `conmon`'s parent is `1`.
 
@@ -105,7 +105,7 @@ By default Podman runs containers as your ordinary user, not as root.
 
 If it prints `false`, the machine has been set to rootful (`podman machine set --rootful`), so
 the default connection runs as root. `pod-ls` marks each connection rootless or rootful and
-shows which is the default.
+shows which is the default. Lesson 7.9 shows how to switch between the two.
 
 #### 0.7 OCI standards
 Images and runtimes follow the Open Container Initiative standards, so the same image works in
@@ -156,12 +156,12 @@ use the same base.
 #### 1.5 One-off containers
 `--rm` removes the container as soon as it exits. `pod-run` uses it.
 
-**Try:** `pod-run docker.io/library/alpine ls /`
+**Try:** `pod-run docker.io/library/alpine:latest ls /`
 
 #### 1.6 Interactive containers
 `-it` connects your terminal to the container, for poking around inside it.
 
-**Try:** `podman run -it --rm docker.io/library/alpine sh`, then `exit`.
+**Try:** `podman run -it --rm docker.io/library/alpine:latest sh`, then `exit`.
 
 `pod-open` wraps this.
 
@@ -305,39 +305,39 @@ the registry name, `podman push` it, then remove it locally and `podman pull` it
 Each container gets its own writable layer on top of the image, and it's deleted with the
 container.
 
-**Try:** `podman run --name tmp docker.io/library/alpine sh -c 'echo hi > /f'`, `podman rm tmp`,
+**Try:** `podman run --name tmp docker.io/library/alpine:latest sh -c 'echo hi > /f'`, `podman rm tmp`,
 then run a new container and look for `/f`.
 
 #### 3.2 Named volumes
 A named volume is storage managed by Podman that outlives any container.
 
 **Try:** `podman volume create mydata`, then
-`podman run --rm -v mydata:/data docker.io/library/alpine sh -c 'echo hi > /data/f'` and read it
+`podman run --rm -v mydata:/data docker.io/library/alpine:latest sh -c 'echo hi > /data/f'` and read it
 back from a second container.
 
 #### 3.3 Bind mounts
 A bind mount shares a folder from your computer with the container. Windows paths are passed
 through to the machine.
 
-**Try:** `podman run --rm -v ${PWD}/data:/data docker.io/library/alpine sh -c 'echo hi > /data/f'`,
+**Try:** `podman run --rm -v ${PWD}/data:/data docker.io/library/alpine:latest sh -c 'echo hi > /data/f'`,
 then look for `data\f` in Explorer.
 
 #### 3.4 Environment variables
 `-e` passes configuration into a container without rebuilding the image.
 
-**Try:** `podman run --rm -e GREETING=hi docker.io/library/alpine env`
+**Try:** `podman run --rm -e GREETING=hi docker.io/library/alpine:latest env`
 
 #### 3.5 Env files
 `--env-file` reads many variables from a file. Commit a `.env.example`, never the real `.env`.
 
-**Try:** create `.env` with two variables and run `podman run --rm --env-file .env docker.io/library/alpine env`.
+**Try:** create `.env` with two variables and run `podman run --rm --env-file .env docker.io/library/alpine:latest env`.
 
 #### 3.6 Secrets
 Podman secrets are mounted as files under `/run/secrets`, so they don't show up in
 `podman inspect` like environment variables do.
 
 **Try:** `'S3cret' | podman secret create db_pass -`, then
-`podman run --rm --secret db_pass docker.io/library/alpine cat /run/secrets/db_pass`.
+`podman run --rm --secret db_pass docker.io/library/alpine:latest cat /run/secrets/db_pass`.
 
 #### 3.7 Data outlives the container
 With a volume for its data, you can replace a database container without losing anything.
@@ -370,7 +370,7 @@ A published port is opened in the machine and forwarded to Windows' `localhost`.
 Rootless containers can't create real network interfaces on the host, so Podman 5 uses `pasta`
 to give them network access (older versions used `slirp4netns`).
 
-**Try:** `pod-run docker.io/library/alpine ip addr` and compare with
+**Try:** `pod-run docker.io/library/alpine:latest ip addr` and compare with
 `podman machine ssh ip addr`.
 
 #### 4.4 Low ports
@@ -390,7 +390,7 @@ On a user-defined network, containers find each other by name.
 **Try:**
 ```powershell
 podman run -d --name web2 --network appnet docker.io/library/nginx:alpine
-podman run --rm --network appnet docker.io/library/alpine wget -qO- web2
+podman run --rm --network appnet docker.io/library/alpine:latest wget -qO- web2
 ```
 
 #### 4.7 The default network has no DNS
@@ -429,7 +429,7 @@ Containers join a pod with `--pod`. Ports are published on the pod, not on each 
 #### 5.4 localhost inside a pod
 Containers in the same pod reach each other on `localhost`.
 
-**Try:** `podman run --rm --pod web docker.io/library/alpine wget -qO- localhost`
+**Try:** `podman run --rm --pod web docker.io/library/alpine:latest wget -qO- localhost`
 
 #### 5.5 The sidecar pattern
 A sidecar is a helper container, such as a log shipper or proxy, running next to the main one
@@ -497,7 +497,7 @@ Because it's Kubernetes YAML, the same file can be the starting point for a real
 #### 7.1 User namespaces
 Root inside a rootless container is mapped to your ordinary user on the host.
 
-**Try:** `podman run -d --name s docker.io/library/alpine sleep 300`, then `podman top s user huser`
+**Try:** `podman run -d --name s docker.io/library/alpine:latest sleep 300`, then `podman top s user huser`
 shows the user inside and outside the container. Remove it with `podman rm -f s`.
 
 #### 7.2 UID mapping
@@ -515,13 +515,13 @@ with `ls -ln`, then repeat with `--userns=keep-id`.
 #### 7.4 Capabilities
 Root's powers are split into capabilities; containers get a reduced set, and you can drop the rest.
 
-**Try:** `pod-run docker.io/library/alpine grep Cap /proc/self/status`, then
-`podman run --rm --cap-drop=ALL docker.io/library/alpine grep Cap /proc/self/status`.
+**Try:** `pod-run docker.io/library/alpine:latest grep Cap /proc/self/status`, then
+`podman run --rm --cap-drop=ALL docker.io/library/alpine:latest grep Cap /proc/self/status`.
 
 #### 7.5 Read-only root filesystem
 `--read-only` stops a container changing its own files; `--tmpfs` gives it scratch space.
 
-**Try:** `podman run --rm --read-only --tmpfs /tmp docker.io/library/alpine sh -c 'touch /f; touch /tmp/f'`
+**Try:** `podman run --rm --read-only --tmpfs /tmp docker.io/library/alpine:latest sh -c 'touch /f; touch /tmp/f'`
 
 #### 7.6 No new privileges
 `--security-opt=no-new-privileges` stops processes gaining privileges through setuid programs.
@@ -540,12 +540,28 @@ A rootful machine runs containers as root inside the VM, for the few things root
 **Try:** `podman machine inspect --format '{{.Rootful}}'`. Switch with
 `podman machine set --rootful` on a stopped machine only if you need it.
 
-#### 7.9 Image scanning
+#### 7.9 Switching between rootful and rootless
+A rootful machine is root only inside the VM, not a Windows administrator. But WSL2 distros share
+one kernel, so root there matters, and rootless is safer: a process that escapes a container
+lands as an ordinary user. The mode can only be changed on a stopped machine, and changing it
+also switches the default connection. Root and your user keep separate storage, so containers
+and images from one mode don't show in the other. They aren't deleted, and they come back when
+you switch again.
+
+**Try:** `pod-ls` and note the default connection and the images. Then `podman machine stop`,
+`podman machine set --rootful=false`, `podman machine start`, and check with
+`podman info --format '{{.Host.Security.Rootless}}'`. Run `pod-ls` again: the default connection
+has changed and the images have gone. Switch back the same way with `--rootful=true` and see
+them return.
+
+`pod-rootless` and `pod-root` do the stop, set and start in one command.
+
+#### 7.10 Image scanning
 Scanners check the packages in an image against known vulnerabilities.
 
 **Try:** `podman run --rm docker.io/aquasec/trivy image docker.io/library/nginx:alpine`
 
-#### 7.10 Least privilege
+#### 7.11 Least privilege
 Give a container only what it needs to work.
 
 **Try:** run your app as non-root with `--cap-drop=ALL`, `--read-only`, a `tmpfs` and
@@ -561,7 +577,7 @@ Linux, so do Lessons 8.3–8.8 inside the machine (`podman machine ssh`).
 #### 8.1 Restart policies
 A restart policy restarts a container automatically when it exits.
 
-**Try:** `podman run -d --name crash --restart=on-failure docker.io/library/alpine sh -c 'sleep 5; exit 1'`,
+**Try:** `podman run -d --name crash --restart=on-failure docker.io/library/alpine:latest sh -c 'sleep 5; exit 1'`,
 wait a while, then `podman inspect crash --format '{{.RestartCount}}'`.
 
 #### 8.2 Health checks
@@ -630,7 +646,7 @@ to do this, deprecated in favour of Quadlet.
 #### 9.2 Debug logging
 `--log-level=debug` shows each step Podman takes, which pinpoints where a command fails.
 
-**Try:** `podman --log-level=debug run --rm docker.io/library/alpine true`
+**Try:** `podman --log-level=debug run --rm docker.io/library/alpine:latest true`
 
 #### 9.3 System information and reset
 `podman info` describes the whole setup; `podman system reset` deletes all containers, images and
@@ -669,7 +685,7 @@ and database) that:
 | 4 | Networking | 8 | Not started | | | |
 | 5 | Pods | 7 | Not started | | | |
 | 6 | Compose and Kubernetes YAML | 6 | Not started | | | |
-| 7 | Rootless containers and security | 10 | Not started | | | |
+| 7 | Rootless containers and security | 11 | Not started | | | |
 | 8 | Running containers as services | 8 | Not started | | | |
 | 9 | Troubleshooting and capstone | 4 + project | Not started | | | |
 

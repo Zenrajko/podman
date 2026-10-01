@@ -16,10 +16,29 @@
 function pod-sys-start { (podman machine start 2>&1 | ForEach-Object { "$_" }) -join "`n" | lolcatjs }
 function pod-sys-stop  { (podman machine stop 2>&1 | ForEach-Object { "$_" }) -join "`n" | lolcatjs }
 
+# Switch the machine to rootful or rootless. The mode can only be changed while the machine is
+# stopped, so stop it, set it and start it again. Setting it also changes the default connection.
+# Root and the rootless user have separate storage, so each mode has its own containers and images.
+# podman machine set prints nothing when it works, so its output is only shown if there is some
+function pod-root {
+    pod-sys-stop
+    $set = (podman machine set --rootful=true 2>&1 | ForEach-Object { "$_" }) -join "`n"
+    if ($set) { $set | lolcatjs }
+    pod-sys-start
+    (podman machine inspect --format "Rootful: {{.Rootful}}" 2>&1 | ForEach-Object { "$_" }) -join "`n" | lolcatjs
+}
+function pod-rootless {
+    pod-sys-stop
+    $set = (podman machine set --rootful=false 2>&1 | ForEach-Object { "$_" }) -join "`n"
+    if ($set) { $set | lolcatjs }
+    pod-sys-start
+    (podman machine inspect --format "Rootful: {{.Rootful}}" 2>&1 | ForEach-Object { "$_" }) -join "`n" | lolcatjs
+}
+
 # Run an image once and remove its container afterwards, in rainbow. Anything after the
 # image is passed to the container as its command, e.g.
-#   pod-run quay.io/podman/hello
-#   pod-run docker.io/library/alpine ls -la /
+#   pod-run quay.io/podman/hello:latest
+#   pod-run docker.io/library/alpine:latest ls -la /
 # Uses $args rather than a param block, so options meant for the container (-la, -i, -o)
 # aren't taken by PowerShell as parameters of pod-run
 function pod-run {
@@ -95,6 +114,26 @@ function pod-digest { (podman images --digests 2>&1 | ForEach-Object { "$_" }) -
 # Show an image's history of layers, in rainbow
 function pod-hist { (podman history $args 2>&1 | ForEach-Object { "$_" }) -join "`n" | lolcatjs }
 
+# Pull the images the other helpers use, skipping any already stored locally, in rainbow.
+# Pulling needs the server in the machine, so check it's running first
+function pod-init {
+    $machines = podman machine list --format json | ConvertFrom-Json
+    if (-not ($machines.Running -contains $true)) {
+        "Machine not running - run pod-sys-start first" | lolcatjs
+        return
+    }
+    $images = "quay.io/podman/hello:latest", "docker.io/library/alpine:latest", "docker.io/library/nginx:alpine"
+    foreach ($image in $images) {
+        # podman image exists prints nothing, so test its exit code rather than output
+        podman image exists $image 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            "$image is already present" | lolcatjs
+        } else {
+            (podman pull $image 2>&1 | ForEach-Object { "$_" }) -join "`n" | lolcatjs
+        }
+    }
+}
+
 # Open an interactive shell in a container, running and removing it afterwards. Runs unbuffered
 # (not via lolcatjs), as piping an interactive session through the rainbow would break it
 function pod-open {
@@ -117,8 +156,18 @@ function pod-edit {
     pod-exec $Name sh
 }
 
-# Open the Alpine image's sh shell
-function pod-alp { pod-open docker.io/library/alpine sh }
+# Open the Alpine image's sh shell, with the aliases below. BusyBox sh runs the file named in
+# ENV when it starts interactively, so the aliases are passed in as SHRC and written to that
+# file first. printenv avoids double quotes, which Windows PowerShell 5.1 mangles in native args
+function pod-alp {
+    $aliases = @(
+        "alias quit=exit"
+        "alias ll='ls -la'"
+    ) -join "`n"
+    $image = "docker.io/library/alpine:latest"
+    "Running image '$image' with shell 'sh'. Type 'exit' or 'quit' to quit." | lolcatjs
+    podman run -it --rm -e "SHRC=$aliases" $image sh -c 'printenv SHRC > /tmp/.shrc && ENV=/tmp/.shrc exec sh'
+}
 
 # Start an nginx Alpine container in the background
 function pod-start-nginx {
@@ -130,7 +179,7 @@ function pod-start-nginx {
 # the container list. Plain alpine has no process to run, so it would exit immediately otherwise
 function pod-start-alp {
     param ([Parameter(Mandatory)][string]$Name)
-    (podman run -d --name $Name docker.io/library/alpine sleep infinity 2>&1 | ForEach-Object { "$_" }) -join "`n" | lolcatjs
+    (podman run -d --name $Name docker.io/library/alpine:latest sleep infinity 2>&1 | ForEach-Object { "$_" }) -join "`n" | lolcatjs
     (podman ps -a 2>&1 | ForEach-Object { "$_" }) -join "`n" | lolcatjs
 }
 
@@ -138,17 +187,18 @@ function pod-start-alp {
 function pod-nginx { pod-open docker.io/library/nginx:alpine sh }
 
 # Quick check that Podman works
-function pod-test { pod-run quay.io/podman/hello }
+function pod-test { pod-run quay.io/podman/hello:latest }
 
 # Show which Linux release the Alpine image is
-function pod-test-alp { pod-run docker.io/library/alpine cat /etc/os-release }
+function pod-test-alp { pod-run docker.io/library/alpine:latest cat /etc/os-release }
 
 # Show which Linux release the nginx Alpine image is
 function pod-test-nginx { pod-run docker.io/library/nginx:alpine cat /etc/os-release }
 
 # List the Podman client/server versions, the machine's kernel and OCI runtime, connections,
-# machines, all containers (running and stopped), images and volumes, in rainbow. The client
-# (Windows) and server (in the machine) are upgraded separately, so their versions can differ
+# machines, all containers (running and stopped), container stats, images, volumes and disk
+# usage, in rainbow. The client (Windows) and server (in the machine) are upgraded separately,
+# so their versions can differ
 function pod-ls {
     # Run podman with warnings and errors included as plain lines, so they land inside the box
     function podlines { podman @args 2>&1 | ForEach-Object { "$_" } }
@@ -237,6 +287,8 @@ function pod-help {
         "MACHINE" = [ordered]@{
             "pod-sys-start" = "Start the Podman machine"
             "pod-sys-stop"  = "Stop the Podman machine"
+            "pod-root"      = "Restart the machine as rootful"
+            "pod-rootless"  = "Restart the machine as rootless"
         }
         "RUN" = [ordered]@{
             "pod-run <image> [cmd...]"  = "Run an image once, then remove the container"
@@ -250,20 +302,21 @@ function pod-help {
             "pod-show <name>"       = "Inspect a container's full details"
             "pod-log <name>"        = "Follow a container's logs"
             "pod-open <image> [shell]" = "Open an interactive shell, default 'sh'"
-            "pod-exec <name> <cmd>"   = "Run a command in a running container"
+            "pod-exec <name> <cmd> [args...]" = "Run a command in a running container"
             "pod-edit <name>"       = "Open a shell in a running container"
-            "pod-alp"                  = "Open the Alpine image's sh shell"
+            "pod-alp"                  = "Open the Alpine image's sh shell, with shell aliases"
             "pod-nginx"                = "Open the nginx Alpine image's sh shell"
-            "pod-test"                 = "Check Podman works (quay.io/podman/hello)"
+            "pod-test"                 = "Check Podman works (quay.io/podman/hello:latest)"
             "pod-test-alp"             = "Show the Alpine image's release"
             "pod-test-nginx"           = "Show the nginx Alpine image's release"
         }
         "IMAGES" = [ordered]@{
             "pod-digest"      = "List images with their digests"
             "pod-hist <image>" = "Show an image's layer history"
+            "pod-init"        = "Pull the helpers' images if they aren't stored locally"
         }
         "INFO" = [ordered]@{
-            "pod-ls"             = "Dashboard: versions, connections, machines, containers, images and volumes"
+            "pod-ls"             = "Dashboard: versions, containers, images, volumes and more"
             "pod-alias [filter]" = "List short-name aliases, optionally filtered"
             "pod-help"           = "Show this list of helpers"
         }

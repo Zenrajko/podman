@@ -21,6 +21,8 @@ It was prepared with AI; see [How AI is used in this project](#how-ai-is-used-in
 |---|---|
 | `pod-sys-start` | Start the Podman machine |
 | `pod-sys-stop` | Stop the Podman machine |
+| `pod-root` | Stop the machine, switch it to rootful and start it again (`podman machine set --rootful=true`) |
+| `pod-rootless` | Stop the machine, switch it to rootless and start it again (`podman machine set --rootful=false`) |
 
 **--- RUN ---**
 
@@ -28,8 +30,8 @@ It was prepared with AI; see [How AI is used in this project](#how-ai-is-used-in
 |---|---|
 | `pod-run <image> [command...]` | Run an image once, optionally with a command, and remove the container afterwards (`podman run --rm`) |
 | `pod-start <name> [image]` | Start a container named `<name>` in the background, detached, then list containers (`podman run -d`, `podman ps -a`). Without an image, start the existing container named `<name>` (`podman start`) |
-| `pod-start-nginx <name>` | Start an nginx Alpine container named `<name>` in the background (`pod-start <name> docker.io/library/nginx:alpine`) |
-| `pod-start-alp <name>` | Start an Alpine container named `<name>` in the background, kept running with `sleep infinity`, then list containers (`podman run -d ... docker.io/library/alpine sleep infinity`, `podman ps -a`) |
+| `pod-start-nginx <name>` | Start an nginx Alpine container named `<name>` in the background, then list containers (`pod-start <name> docker.io/library/nginx:alpine`) |
+| `pod-start-alp <name>` | Start an Alpine container named `<name>` in the background, kept running with `sleep infinity`, then list containers (`podman run -d ... docker.io/library/alpine:latest sleep infinity`, `podman ps -a`) |
 | `pod-stop <name>` | Stop a named container without removing it, then list containers (`podman stop`, `podman ps -a`) |
 | `pod-rm-con <name>` | Remove a named container, but not if running, then list containers (`podman rm`, `podman ps -a`) |
 | `pod-rm-img <name>` | Remove a named image, but not if in use, then list images (`podman rmi`, `podman images`) |
@@ -39,9 +41,9 @@ It was prepared with AI; see [How AI is used in this project](#how-ai-is-used-in
 | `pod-open <image> [shell]` | Run an image interactively with a shell, defaulting to `sh`, and remove the container afterwards (`podman run -it --rm`) |
 | `pod-exec <name> <command> [args...]` | Run a command in a running container's terminal (`podman exec -it`) |
 | `pod-edit <name>` | Open a `sh` shell in a running container (`pod-exec <name> sh`) |
-| `pod-alp` | Open the Alpine image's `sh` shell (`pod-open docker.io/library/alpine sh`) |
+| `pod-alp` | Open the Alpine image's `sh` shell, with shell aliases |
 | `pod-nginx` | Open the nginx Alpine image's `sh` shell (`pod-open docker.io/library/nginx:alpine sh`) |
-| `pod-test` | Check Podman works by running `quay.io/podman/hello` |
+| `pod-test` | Check Podman works by running `quay.io/podman/hello:latest` |
 | `pod-test-alp` | Show the Alpine image's release with `cat /etc/os-release` |
 | `pod-test-nginx` | Show the nginx Alpine image's release with `cat /etc/os-release` |
 
@@ -51,13 +53,14 @@ It was prepared with AI; see [How AI is used in this project](#how-ai-is-used-in
 |---|---|
 | `pod-digest` | List images with their repository tags and digests (`podman images --digests`) |
 | `pod-hist <image>` | Show an image's layer history (`podman history <image>`) |
+| `pod-init` | Pull the images the helpers use (`quay.io/podman/hello:latest`, `docker.io/library/alpine:latest`, `docker.io/library/nginx:alpine`), skipping any already stored locally (`podman image exists`, `podman pull`) |
 
 **--- INFO ---**
 
 | Function | What it does |
 |---|---|
 | `pod-ls` | Podman dashboard: client/server versions, connections, machines, containers, container stats, images, volumes and disk usage, in a box |
-| `pod-alias [filter]` | List podman's registered short-name aliases (from `registries.conf` and its drop-ins, plus `short-name-aliases.conf`), optionally only those whose name contains the filter |
+| `pod-alias [filter]` | List the short-name aliases in the machine's `/etc/containers/registries.conf.d/000-shortnames.conf`, optionally only the lines that contain the filter |
 | `pod-help` | List every pod-* helper with a one-line description, grouped by what it does |
 
 ### Setup

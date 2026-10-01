@@ -6,8 +6,9 @@ with code in this repository.
 ## What this is
 
 A personal repo for learning Podman on Windows: notes and experiments, plus `PodmanHelpers.ps1`,
-a set of PowerShell functions (`pod-sys-start`, `pod-sys-stop`, `pod-run`, `pod-start`,
-`pod-open`, `pod-test`, `pod-test-alp`, `pod-ls`) that users dot-source from their `$PROFILE`.
+a set of `pod-*` PowerShell functions that users dot-source from their `$PROFILE`. They control
+the machine, run and manage containers, show image details and give a dashboard (`pod-ls`).
+`pod-help` lists them all, grouped the same way as the README table.
 There is no build, test suite or linter.
 It may be published, so keep it free of employer names, customer data and PII.
 
@@ -40,7 +41,7 @@ it first:
 ```powershell
 . .\PodmanHelpers.ps1
 pod-sys-start
-pod-test      # runs quay.io/podman/hello
+pod-test      # runs quay.io/podman/hello:latest
 pod-ls
 pod-sys-stop
 ```
